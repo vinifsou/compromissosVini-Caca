@@ -119,6 +119,8 @@
     const inputText = document.getElementById("inputText");
     const sendBtn = document.getElementById("sendBtn");
 
+    let nomeUsuario = "";
+
     function renderMsg(text, sender) {
       const div = document.createElement("div");
       div.className = "msg " + sender;
@@ -131,11 +133,9 @@
       const regex = /(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/;
       const match = regex.exec(text);
       if (!match) return null;
-
       const d = parseInt(match[1], 10);
       const m = parseInt(match[2], 10) - 1;
       const y = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
-
       const date = new Date(y, m, d);
       return (date.getDate() === d && date.getMonth() === m) ? date : null;
     }
@@ -153,7 +153,7 @@
       const dataStr = data.toISOString().split('T')[0];
       try {
         const novoRef = push(ref(db, `compromissos`));
-        await set(novoRef, { texto, data: dataStr });
+        await set(novoRef, { texto, data: dataStr, autor: nomeUsuario });
         renderMsg("✅ Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
       } catch (e) {
         renderMsg("⚠️ Erro ao salvar: " + e.message, "bot");
@@ -169,19 +169,21 @@
           return;
         }
         const dados = Object.values(snap.val());
-        const agora = new Date();
+        const hoje = new Date();
+        const dia = hoje.getDay();
 
-        const diaSemana = agora.getDay();
-        const sabado = new Date(agora);
-        sabado.setDate(agora.getDate() + (6 - diaSemana >= 0 ? 6 - diaSemana : 6));
+        const sabado = new Date(hoje);
+        sabado.setDate(hoje.getDate() + ((6 - dia + 7) % 7));
+        sabado.setHours(0, 0, 0, 0);
 
         const domingo = new Date(sabado);
         domingo.setDate(sabado.getDate() + 1);
+        domingo.setHours(23, 59, 59, 999);
 
         const lista = dados.filter(c => {
           const d = new Date(c.data);
           return d >= sabado && d <= domingo;
-        }).map(c => `📌 ${c.texto} - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
+        }).map(c => `📌 ${c.texto} (${c.autor || "desconhecido"}) - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
 
         if (lista.length === 0) {
           renderMsg("📭 Nenhum compromisso para este fim de semana.", "bot");
@@ -221,7 +223,8 @@
     });
 
     window.onload = () => {
-      renderMsg("👋 Olá! Sua agenda está pronta.\nDigite algo como: Jantar 07/06, ou 'listar' ou 'o que tenho esse fds?'.", "bot");
+      nomeUsuario = prompt("Digite seu nome (ex: Vini, Cacá):")?.trim() || "anonimo";
+      renderMsg("👋 Olá " + nomeUsuario + "!\nDigite algo como: Jantar 07/06, ou 'listar', ou 'o que tenho esse fds?'.", "bot");
     };
   </script>
 </body>
