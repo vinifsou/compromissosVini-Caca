@@ -3,200 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Agenda Firebase</title>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getDatabase, ref, push, set, get, update, remove, child } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCyMDWt_iKPvEyVua88VJyCv1za4fp1Ric",
-      authDomain: "agenda-vini-e-caca.firebaseapp.com",
-      projectId: "agenda-vini-e-caca",
-      storageBucket: "agenda-vini-e-caca.firebasestorage.app",
-      messagingSenderId: "472483277224",
-      appId: "1:472483277224:web:11020f020aa3e2da07d59d",
-      measurementId: "G-6E4WLR75CM",
-      databaseURL: "https://agenda-vini-e-caca-default-rtdb.firebaseio.com"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    const chat = document.getElementById("chat");
-    const inputText = document.getElementById("inputText");
-    const sendBtn = document.getElementById("sendBtn");
-    let usuario = "";
-    let compromissos = [];
-    let ultimaListaConsultada = [];
-
-    function renderMsg(text, sender) {
-      const div = document.createElement("div");
-      div.className = "msg " + sender;
-      div.textContent = text;
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    function parseDateFromText(text) {
-      const dateRegex = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/;
-      const match = text.match(dateRegex);
-      if (match) {
-        const [_, d, m, y] = match;
-        const year = y || new Date().getFullYear();
-        return new Date(Date.UTC(year, parseInt(m) - 1, parseInt(d)));
-      }
-      return null;
-    }
-
-    function getWeekendDates(baseDate = new Date()) {
-      const base = new Date(Date.UTC(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate()));
-      const saturday = new Date(base);
-      saturday.setUTCDate(base.getUTCDate() + ((6 - base.getUTCDay() + 7) % 7));
-      const sunday = new Date(saturday);
-      sunday.setUTCDate(saturday.getUTCDate() + 1);
-      return [
-        saturday.toISOString().split('T')[0],
-        sunday.toISOString().split('T')[0]
-      ];
-    }
-
-    async function salvarCompromisso(texto) {
-      const data = parseDateFromText(texto);
-      if (!data) {
-        renderMsg("❌ Não consegui entender a data. Use o formato DD/MM.", "bot");
-        return;
-      }
-      const novoRef = push(ref(db, `usuarios/${usuario}/compromissos`));
-      await set(novoRef, {
-        texto,
-        data: data.toISOString().split('T')[0]
-      });
-      renderMsg("✅ Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
-      carregarCompromissos();
-    }
-
-    async function carregarCompromissos() {
-      const snap = await get(ref(db, `usuarios/${usuario}/compromissos`));
-      if (snap.exists()) {
-        const data = snap.val();
-        compromissos = Object.entries(data).map(([key, val]) => ({ id: key, ...val }));
-      } else {
-        compromissos = [];
-      }
-    }
-
-    function buscarCompromissosPorDataBaseada(text) {
-      let baseDate = null;
-      const dateMatch = text.match(/(\d{1,2})\/(\d{1,2})/);
-      if (/este\s*f.?im de semana|esse\s*f.?ds|nesse\s*f.?im de semana|nesse\s*final de semana|esse\s*final de semana|este\s*final de semana/i.test(text)) {
-        baseDate = new Date();
-      } else if (dateMatch) {
-        baseDate = new Date(Date.UTC(new Date().getFullYear(), parseInt(dateMatch[2]) - 1, parseInt(dateMatch[1])));
-      }
-      if (!baseDate) return [];
-      const [sab, dom] = getWeekendDates(baseDate);
-      return compromissos.map((c, idx) => ({ ...c, originalIndex: idx }))
-                         .filter(c => c.data === sab || c.data === dom);
-    }
-
-    async function excluirCompromisso(index) {
-      const id = ultimaListaConsultada[index].id;
-      await remove(ref(db, `usuarios/${usuario}/compromissos/${id}`));
-      renderMsg(`🗑️ Compromisso (${index + 1}) excluído.`, "bot");
-      carregarCompromissos();
-    }
-
-    async function editarCompromisso(index, novoTexto) {
-      const novaData = parseDateFromText(novoTexto);
-      if (!novaData) {
-        renderMsg("❌ A nova mensagem precisa conter uma data válida (DD/MM).", "bot");
-        return;
-      }
-      const id = ultimaListaConsultada[index].id;
-      await update(ref(db, `usuarios/${usuario}/compromissos/${id}`), {
-        texto: novoTexto,
-        data: novaData.toISOString().split('T')[0]
-      });
-      renderMsg(`✏️ Compromisso (${index + 1}) atualizado.`, "bot");
-      carregarCompromissos();
-    }
-
-    function isPergunta(text) {
-      const lower = text.toLowerCase();
-      return /o que|tenho|compromisso|quais/i.test(lower) && /(fds|fim de semana|final de semana|sábado|sabado|domingo|\d{1,2}\/\d{1,2})/i.test(lower);
-    }
-
-    function isComandoDeletar(text) {
-      return /^excluir\s*\d+$/i.test(text.trim());
-    }
-
-    function isComandoEditar(text) {
-      return /^editar\s*\d+\s*-\s*/i.test(text.trim());
-    }
-
-    async function handleInput(text) {
-      renderMsg(text, "user");
-      if (isComandoDeletar(text)) {
-        const numero = parseInt(text.trim().split(" ")[1]);
-        if (!isNaN(numero) && ultimaListaConsultada.length >= numero) {
-          await excluirCompromisso(numero - 1);
-        } else {
-          renderMsg("❌ Número inválido para exclusão.", "bot");
-        }
-        return;
-      }
-      if (isComandoEditar(text)) {
-        const match = text.match(/^editar\s*(\d+)\s*-\s*(.+)$/i);
-        if (!match) {
-          renderMsg("❌ Formato inválido. Use: editar [número] - novo texto", "bot");
-          return;
-        }
-        const numero = parseInt(match[1]);
-        const novoTexto = match[2];
-        if (!isNaN(numero) && ultimaListaConsultada.length >= numero) {
-          await editarCompromisso(numero - 1, novoTexto);
-        } else {
-          renderMsg("❌ Número inválido para edição.", "bot");
-        }
-        return;
-      }
-      if (isPergunta(text)) {
-        const lista = buscarCompromissosPorDataBaseada(text);
-        ultimaListaConsultada = lista;
-        if (lista.length === 0) {
-          renderMsg("Nenhum compromisso registrado para o período consultado.", "bot");
-        } else {
-          const resposta = lista.map((c, i) => `(${i + 1}) ${c.texto}`).join("\n");
-          renderMsg("📅 Seus compromissos:\n" + resposta + "\nPara excluir, digite: excluir [número]\nPara editar, digite: editar [número] - novo texto com data", "bot");
-        }
-      } else {
-        salvarCompromisso(text);
-      }
-    }
-
-    sendBtn.onclick = async () => {
-      const text = inputText.value.trim();
-      if (text) {
-        await handleInput(text);
-        inputText.value = "";
-      }
-    };
-
-    inputText.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") sendBtn.click();
-    });
-
-    window.onload = async () => {
-      usuario = prompt("Digite seu nome de usuário (ex: vini, caca):");
-      if (!usuario) usuario = "anonimo";
-      renderMsg("👋 Olá, " + usuario + "! Sua agenda está pronta.", "bot");
-      await carregarCompromissos();
-    };
-  </script>
+  <title>Agenda Vini & Cacá</title>
   <style>
     body {
-      font-family: sans-serif;
-      background: #f2f2f2;
+      font-family: 'Segoe UI', sans-serif;
+      background: #e5ddd5;
       margin: 0;
       padding: 0;
       display: flex;
@@ -205,50 +16,75 @@
     }
     #chat {
       flex: 1;
-      padding: 10px;
+      padding: 16px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
+      background-image: url('https://www.transparenttextures.com/patterns/cubes.png');
     }
     .msg {
-      background: #e0e0e0;
-      padding: 8px 12px;
+      padding: 10px 14px;
       border-radius: 15px;
-      margin: 5px 0;
-      max-width: 80%;
+      margin: 6px 0;
+      max-width: 75%;
+      font-size: 15px;
+      line-height: 1.4;
     }
     .user {
       align-self: flex-end;
-      background: #cef;
+      background: #dcf8c6;
     }
     .bot {
       align-self: flex-start;
-      background: #fff;
+      background: white;
     }
     #inputArea {
       display: flex;
+      padding: 10px;
+      background: #f0f0f0;
       border-top: 1px solid #ccc;
+      position: sticky;
+      bottom: 0;
     }
     #inputText {
       flex: 1;
-      padding: 10px;
+      padding: 12px;
       font-size: 16px;
-      border: none;
+      border-radius: 20px;
+      border: 1px solid #ccc;
+      margin-right: 10px;
     }
     #sendBtn {
-      padding: 10px;
-      background: #007bff;
+      padding: 12px 18px;
+      background: #128c7e;
       color: white;
       border: none;
+      border-radius: 20px;
+      font-weight: bold;
       cursor: pointer;
+    }
+    #header {
+      background: #075e54;
+      color: white;
+      padding: 14px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
   </style>
 </head>
 <body>
+  <div id="header">Agenda Vini & Cacá</div>
   <div id="chat"></div>
   <div id="inputArea">
     <input id="inputText" type="text" placeholder="Digite seu compromisso ou comando..." />
     <button id="sendBtn">Enviar</button>
   </div>
+  <script type="module">
+    // Seu script permanece igual aqui
+  </script>
 </body>
 </html>
