@@ -68,6 +68,7 @@
     const sendBtn = document.getElementById("sendBtn");
 
     let compromissos = JSON.parse(localStorage.getItem("compromissos_fds")) || [];
+    let ultimaListaConsultada = [];
 
     function renderMsg(text, sender) {
       const div = document.createElement("div");
@@ -83,7 +84,6 @@
       if (match) {
         const [_, d, m, y] = match;
         const year = y || new Date().getFullYear();
-        // Use Date.UTC to avoid timezone shifting
         return new Date(Date.UTC(year, parseInt(m) - 1, parseInt(d)));
       }
       return null;
@@ -122,7 +122,8 @@
       }
       if (!baseDate) return [];
       const [sab, dom] = getWeekendDates(baseDate);
-      return compromissos.filter(c => c.data === sab || c.data === dom);
+      return compromissos.map((c, idx) => ({ ...c, originalIndex: idx }))
+                         .filter(c => c.data === sab || c.data === dom);
     }
 
     function isPergunta(text) {
@@ -130,15 +131,37 @@
       return /o que|tenho|compromisso|quais/i.test(lower) && /(fds|fim de semana|final de semana|sábado|sabado|domingo|\d{1,2}\/\d{1,2})/i.test(lower);
     }
 
+    function isComandoDeletar(text) {
+      return /^excluir\s*\d+$/i.test(text.trim());
+    }
+
+    function executarComandoDeletar(text) {
+      const numero = parseInt(text.trim().split(" ")[1]);
+      if (!isNaN(numero) && ultimaListaConsultada.length >= numero) {
+        const indexOriginal = ultimaListaConsultada[numero - 1].originalIndex;
+        const itemRemovido = compromissos.splice(indexOriginal, 1);
+        localStorage.setItem("compromissos_fds", JSON.stringify(compromissos));
+        renderMsg(`Compromisso (${numero}) excluído: ${itemRemovido[0].texto}`, "bot");
+      } else {
+        renderMsg("Número inválido para exclusão.", "bot");
+      }
+    }
+
     function handleInput(text) {
       renderMsg(text, "user");
+      if (isComandoDeletar(text)) {
+        executarComandoDeletar(text);
+        return;
+      }
+
       if (isPergunta(text)) {
         const lista = buscarCompromissosPorDataBaseada(text);
+        ultimaListaConsultada = lista;
         if (lista.length === 0) {
           renderMsg("Nenhum compromisso registrado para o período consultado.", "bot");
         } else {
           const resposta = lista.map((c, i) => `(${i + 1}) ${c.texto}`).join("\n");
-          renderMsg("Seus compromissos:\n" + resposta, "bot");
+          renderMsg("Seus compromissos:\n" + resposta + "\nPara excluir, digite: excluir [número]", "bot");
         }
       } else {
         salvarCompromisso(text);
