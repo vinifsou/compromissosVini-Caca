@@ -58,7 +58,7 @@
 <body>
   <div id="chat"></div>
   <div id="inputArea">
-    <input id="inputText" type="text" placeholder="Digite seu compromisso..." />
+    <input id="inputText" type="text" placeholder="Digite seu compromisso ou pergunta..." />
     <button id="sendBtn">Enviar</button>
   </div>
 
@@ -109,11 +109,11 @@
 
     function buscarCompromissosPorDataBaseada(text) {
       let baseDate = null;
-      if (/este f.?im de semana/i.test(text)) {
+      const dateMatch = text.match(/(\d{1,2})\/(\d{1,2})/);
+      if (/este f.?im de semana|esse f.?ds|nesse f.?im de semana/i.test(text)) {
         baseDate = new Date();
-      } else if (/fim de semana do dia (\d{1,2})\/(\d{1,2})/i.test(text)) {
-        const match = text.match(/(\d{1,2})\/(\d{1,2})/);
-        baseDate = new Date(`${new Date().getFullYear()}-${match[2]}-${match[1]}`);
+      } else if (dateMatch) {
+        baseDate = new Date(`${new Date().getFullYear()}-${dateMatch[2]}-${dateMatch[1]}`);
       }
       if (!baseDate) return [];
       const sab = getNextWeekdayDate(6, baseDate).toISOString().split('T')[0];
@@ -121,10 +121,14 @@
       return compromissos.filter(c => c.data === sab || c.data === dom);
     }
 
+    function isPergunta(text) {
+      const lower = text.toLowerCase();
+      return /o que|tenho|compromisso|quais/i.test(lower) && /(fds|fim de semana|sábado|sabado|domingo|\d{1,2}\/\d{1,2})/i.test(lower);
+    }
+
     function handleInput(text) {
       renderMsg(text, "user");
-      const lower = text.toLowerCase();
-      if (lower.includes("tenho") && lower.includes("fim de semana")) {
+      if (isPergunta(text)) {
         const lista = buscarCompromissosPorDataBaseada(text);
         if (lista.length === 0) {
           renderMsg("Nenhum compromisso registrado para o período consultado.", "bot");
@@ -152,4 +156,3 @@
   </script>
 </body>
 </html>
-
