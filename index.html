@@ -6,29 +6,30 @@
   <title>Agenda Vini & Cacá</title>
   <style>
     body {
-      background: #ece5dd;
+      background: #d2dbdc;
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
     }
-    .phone {
-      width: 375px;
-      height: 667px;
-      border: 1px solid #ccc;
-      border-radius: 30px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-      background: #fff;
+    .iphone {
+      width: 390px;
+      height: 844px;
+      border: 16px solid #333;
+      border-radius: 50px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      background: #ece5dd;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
     }
     .header {
       background: #075e54;
       color: white;
-      padding: 12px;
+      padding: 16px;
       font-size: 18px;
       font-weight: bold;
       text-align: center;
@@ -37,7 +38,6 @@
       flex: 1;
       padding: 12px;
       overflow-y: auto;
-      background: #ece5dd;
       display: flex;
       flex-direction: column;
     }
@@ -48,6 +48,7 @@
       max-width: 75%;
       font-size: 15px;
       line-height: 1.4;
+      word-break: break-word;
     }
     .user {
       align-self: flex-end;
@@ -83,7 +84,7 @@
   </style>
 </head>
 <body>
-  <div class="phone">
+  <div class="iphone">
     <div class="header">Agenda Vini & Cacá</div>
     <div id="chat"></div>
     <div id="inputArea">
@@ -93,7 +94,7 @@
   </div>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getDatabase, ref, push, set, get, update, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+    import { getDatabase, ref, push, set, get, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCyMDWt_iKPvEyVua88VJyCv1za4fp1Ric",
@@ -130,7 +131,8 @@
       const d = parseInt(match[1]);
       const m = parseInt(match[2]) - 1;
       const y = match[3] ? parseInt(match[3]) : new Date().getFullYear();
-      return new Date(y, m, d);
+      const date = new Date(y, m, d);
+      return date && date.getDate() === d && date.getMonth() === m ? date : null;
     }
 
     async function salvarCompromisso(texto) {
@@ -145,11 +147,37 @@
       renderMsg("✅ Salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
     }
 
+    async function listarCompromissos() {
+      const snap = await get(ref(db, `usuarios/${usuario}/compromissos`));
+      if (!snap.exists()) {
+        renderMsg("📭 Nenhum compromisso encontrado.", "bot");
+        return;
+      }
+      const dados = snap.val();
+      const lista = Object.values(dados).map(c => `📌 ${c.texto} - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
+      renderMsg("📅 Compromissos:\n" + lista.join("\n"), "bot");
+    }
+
+    async function excluirTodosCompromissos() {
+      await remove(ref(db, `usuarios/${usuario}/compromissos`));
+      renderMsg("🗑️ Todos os compromissos foram excluídos.", "bot");
+    }
+
+    async function processarTexto(texto) {
+      if (/listar/i.test(texto)) {
+        await listarCompromissos();
+      } else if (/excluir todos/i.test(texto)) {
+        await excluirTodosCompromissos();
+      } else {
+        await salvarCompromisso(texto);
+      }
+    }
+
     sendBtn.onclick = async () => {
       const text = inputText.value.trim();
       if (!text) return;
       renderMsg(text, "user");
-      await salvarCompromisso(text);
+      await processarTexto(text);
       inputText.value = "";
     };
 
@@ -159,7 +187,7 @@
 
     window.onload = () => {
       usuario = prompt("Digite seu nome de usuário (ex: vini, caca):") || "anonimo";
-      renderMsg("👋 Olá, " + usuario + "! Sua agenda está pronta.", "bot");
+      renderMsg("👋 Olá, " + usuario + "! Sua agenda está pronta.\nDigite algo como: Jantar 07/06, ou 'listar' para ver os compromissos.", "bot");
     };
   </script>
 </body>
