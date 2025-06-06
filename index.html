@@ -97,6 +97,7 @@
       <button id="sendBtn">Enviar</button>
     </div>
   </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getDatabase, ref, push, set, get, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
@@ -105,7 +106,7 @@
       apiKey: "AIzaSyCyMDWt_iKPvEyVua88VJyCv1za4fp1Ric",
       authDomain: "agenda-vini-e-caca.firebaseapp.com",
       projectId: "agenda-vini-e-caca",
-      storageBucket: "agenda-vini-e-caca.firebasestorage.app",
+      storageBucket: "agenda-vini-e-caca.appspot.com",
       messagingSenderId: "472483277224",
       appId: "1:472483277224:web:11020f020aa3e2da07d59d",
       measurementId: "G-6E4WLR75CM",
@@ -130,7 +131,7 @@
     }
 
     function parseDate(text) {
-      const regex = /(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/;
+      const regex = /(\\d{1,2})\\/(\\d{1,2})(?:\\/(\\d{2,4}))?/;
       const match = regex.exec(text);
       if (!match) return null;
       const d = parseInt(match[1], 10);
@@ -151,49 +152,39 @@
         return;
       }
       const dataStr = data.toISOString().split('T')[0];
-      try {
-        const novoRef = push(ref(db, `compromissos`));
-        await set(novoRef, { texto, data: dataStr, autor: nomeUsuario });
-        renderMsg("✅ Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
-      } catch (e) {
-        renderMsg("⚠️ Erro ao salvar: " + e.message, "bot");
-        console.error("Erro Firebase:", e);
-      }
+      const novoRef = push(ref(db, `compromissos`));
+      await set(novoRef, { texto, data: dataStr, autor: nomeUsuario });
+      renderMsg("✅ Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
     }
 
     async function listarCompromissosFds() {
-      try {
-        const snap = await get(ref(db, `compromissos`));
-        if (!snap.exists()) {
-          renderMsg("📭 Nenhum compromisso encontrado.", "bot");
-          return;
-        }
-        const dados = Object.values(snap.val());
-        const hoje = new Date();
+      const snap = await get(ref(db, `compromissos`));
+      if (!snap.exists()) {
+        renderMsg("📭 Nenhum compromisso encontrado.", "bot");
+        return;
+      }
+      const dados = Object.values(snap.val());
+      const hoje = new Date();
 
-        // Pega a próxima sexta (caso hoje já seja sexta ou mais) ou sexta atual (se hoje for antes)
-        const diaSemana = hoje.getDay();
-        const sexta = new Date(hoje);
-        sexta.setDate(hoje.getDate() + ((5 - diaSemana + 7) % 7));
-        sexta.setHours(0, 0, 0, 0);
+      const diaSemana = hoje.getDay(); // 0 = domingo, 6 = sábado
+      const sexta = new Date(hoje);
+      sexta.setDate(hoje.getDate() + ((5 - diaSemana + 7) % 7));
+      sexta.setHours(0, 0, 0, 0);
 
-        const domingo = new Date(sexta);
-        domingo.setDate(sexta.getDate() + 2);
-        domingo.setHours(23, 59, 59, 999);
+      const domingo = new Date(sexta);
+      domingo.setDate(sexta.getDate() + 2);
+      domingo.setHours(23, 59, 59, 999);
 
-        const lista = dados.filter(c => {
-          const d = new Date(c.data);
-          return d >= sexta && d <= domingo;
-        }).map(c => `📌 ${c.texto} (${c.autor || "desconhecido"}) - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
+      const lista = dados.filter(c => {
+        const d = new Date(c.data);
+        d.setHours(0, 0, 0, 0);
+        return d >= sexta && d <= domingo;
+      }).map(c => `📌 ${c.texto} (${c.autor || "desconhecido"}) - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
 
-        if (lista.length === 0) {
-          renderMsg("📭 Nenhum compromisso para este fim de semana.", "bot");
-        } else {
-          renderMsg("📅 Compromissos deste fim de semana:\n" + lista.join("\n"), "bot");
-        }
-      } catch (e) {
-        renderMsg("❌ Erro ao buscar compromissos.", "bot");
-        console.error(e);
+      if (lista.length === 0) {
+        renderMsg("📭 Nenhum compromisso para este fim de semana.", "bot");
+      } else {
+        renderMsg("📅 Compromissos deste fim de semana:\n" + lista.join("\n"), "bot");
       }
     }
 
