@@ -83,23 +83,33 @@
       if (match) {
         const [_, d, m, y] = match;
         const year = y || new Date().getFullYear();
-        return new Date(`${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+        // Use Date.UTC to avoid timezone shifting
+        return new Date(Date.UTC(year, parseInt(m) - 1, parseInt(d)));
       }
       return null;
     }
 
     function getWeekendDates(baseDate = new Date()) {
-      const saturday = new Date(baseDate);
-      saturday.setDate(saturday.getDate() + ((6 - saturday.getDay() + 7) % 7));
+      const base = new Date(Date.UTC(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate()));
+      const saturday = new Date(base);
+      saturday.setUTCDate(base.getUTCDate() + ((6 - base.getUTCDay() + 7) % 7));
       const sunday = new Date(saturday);
-      sunday.setDate(saturday.getDate() + 1);
-      return [saturday.toISOString().split('T')[0], sunday.toISOString().split('T')[0]];
+      sunday.setUTCDate(saturday.getUTCDate() + 1);
+      return [
+        saturday.toISOString().split('T')[0],
+        sunday.toISOString().split('T')[0]
+      ];
     }
 
     function salvarCompromisso(texto) {
       const data = parseDateFromText(texto);
-      compromissos.push({ texto, data: data ? data.toISOString().split('T')[0] : null });
+      if (!data) {
+        renderMsg("Não consegui entender a data. Use o formato DD/MM ou inclua 'sábado' ou 'domingo'.", "bot");
+        return;
+      }
+      compromissos.push({ texto, data: data.toISOString().split('T')[0] });
       localStorage.setItem("compromissos_fds", JSON.stringify(compromissos));
+      renderMsg("Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
     }
 
     function buscarCompromissosPorDataBaseada(text) {
@@ -108,7 +118,7 @@
       if (/este\s*f.?im de semana|esse\s*f.?ds|nesse\s*f.?im de semana|nesse\s*final de semana|esse\s*final de semana|este\s*final de semana/i.test(text)) {
         baseDate = new Date();
       } else if (dateMatch) {
-        baseDate = new Date(`${new Date().getFullYear()}-${dateMatch[2]}-${dateMatch[1]}`);
+        baseDate = new Date(Date.UTC(new Date().getFullYear(), parseInt(dateMatch[2]) - 1, parseInt(dateMatch[1])));
       }
       if (!baseDate) return [];
       const [sab, dom] = getWeekendDates(baseDate);
@@ -132,7 +142,6 @@
         }
       } else {
         salvarCompromisso(text);
-        renderMsg("Compromisso salvo!", "bot");
       }
     }
 
