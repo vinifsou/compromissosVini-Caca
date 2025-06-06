@@ -170,19 +170,20 @@
         }
         const dados = Object.values(snap.val());
         const hoje = new Date();
-        const dia = hoje.getDay();
 
-        const sabado = new Date(hoje);
-        sabado.setDate(hoje.getDate() + ((6 - dia + 7) % 7));
-        sabado.setHours(0, 0, 0, 0);
+        // Pega a próxima sexta (caso hoje já seja sexta ou mais) ou sexta atual (se hoje for antes)
+        const diaSemana = hoje.getDay();
+        const sexta = new Date(hoje);
+        sexta.setDate(hoje.getDate() + ((5 - diaSemana + 7) % 7));
+        sexta.setHours(0, 0, 0, 0);
 
-        const domingo = new Date(sabado);
-        domingo.setDate(sabado.getDate() + 1);
+        const domingo = new Date(sexta);
+        domingo.setDate(sexta.getDate() + 2);
         domingo.setHours(23, 59, 59, 999);
 
         const lista = dados.filter(c => {
           const d = new Date(c.data);
-          return d >= sabado && d <= domingo;
+          return d >= sexta && d <= domingo;
         }).map(c => `📌 ${c.texto} (${c.autor || "desconhecido"}) - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
 
         if (lista.length === 0) {
