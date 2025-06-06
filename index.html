@@ -110,7 +110,7 @@
     function buscarCompromissosPorDataBaseada(text) {
       let baseDate = null;
       const dateMatch = text.match(/(\d{1,2})\/(\d{1,2})/);
-      if (/este f.?im de semana|esse f.?ds|nesse f.?im de semana/i.test(text)) {
+      if (/este\s*f.?im de semana|esse\s*f.?ds|nesse\s*f.?im de semana|nesse\s*final de semana|esse\s*final de semana|este\s*final de semana/i.test(text)) {
         baseDate = new Date();
       } else if (dateMatch) {
         baseDate = new Date(`${new Date().getFullYear()}-${dateMatch[2]}-${dateMatch[1]}`);
@@ -123,7 +123,7 @@
 
     function isPergunta(text) {
       const lower = text.toLowerCase();
-      return /o que|tenho|compromisso|quais/i.test(lower) && /(fds|fim de semana|sábado|sabado|domingo|\d{1,2}\/\d{1,2})/i.test(lower);
+      return /o que|tenho|compromisso|quais/i.test(lower) && /(fds|fim de semana|final de semana|sábado|sabado|domingo|\d{1,2}\/\d{1,2})/i.test(lower);
     }
 
     function handleInput(text) {
