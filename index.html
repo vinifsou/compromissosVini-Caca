@@ -6,21 +6,40 @@
   <title>Agenda Vini & Cacá</title>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #e5ddd5;
+      background: #ece5dd;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
       margin: 0;
-      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .phone {
+      width: 375px;
+      height: 667px;
+      border: 1px solid #ccc;
+      border-radius: 30px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      background: #fff;
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      overflow: hidden;
+    }
+    .header {
+      background: #075e54;
+      color: white;
+      padding: 12px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
     }
     #chat {
       flex: 1;
-      padding: 16px;
+      padding: 12px;
       overflow-y: auto;
+      background: #ece5dd;
       display: flex;
       flex-direction: column;
-      background-image: url('https://www.transparenttextures.com/patterns/cubes.png');
     }
     .msg {
       padding: 10px 14px;
@@ -43,8 +62,6 @@
       padding: 10px;
       background: #f0f0f0;
       border-top: 1px solid #ccc;
-      position: sticky;
-      bottom: 0;
     }
     #inputText {
       flex: 1;
@@ -63,28 +80,87 @@
       font-weight: bold;
       cursor: pointer;
     }
-    #header {
-      background: #075e54;
-      color: white;
-      padding: 14px;
-      font-size: 18px;
-      font-weight: bold;
-      text-align: center;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
   </style>
 </head>
 <body>
-  <div id="header">Agenda Vini & Cacá</div>
-  <div id="chat"></div>
-  <div id="inputArea">
-    <input id="inputText" type="text" placeholder="Digite seu compromisso ou comando..." />
-    <button id="sendBtn">Enviar</button>
+  <div class="phone">
+    <div class="header">Agenda Vini & Cacá</div>
+    <div id="chat"></div>
+    <div id="inputArea">
+      <input id="inputText" type="text" placeholder="Digite aqui..." />
+      <button id="sendBtn">Enviar</button>
+    </div>
   </div>
   <script type="module">
-    // Seu script permanece igual aqui
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getDatabase, ref, push, set, get, update, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCyMDWt_iKPvEyVua88VJyCv1za4fp1Ric",
+      authDomain: "agenda-vini-e-caca.firebaseapp.com",
+      projectId: "agenda-vini-e-caca",
+      storageBucket: "agenda-vini-e-caca.firebasestorage.app",
+      messagingSenderId: "472483277224",
+      appId: "1:472483277224:web:11020f020aa3e2da07d59d",
+      measurementId: "G-6E4WLR75CM",
+      databaseURL: "https://agenda-vini-e-caca-default-rtdb.firebaseio.com"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const chat = document.getElementById("chat");
+    const inputText = document.getElementById("inputText");
+    const sendBtn = document.getElementById("sendBtn");
+    let usuario = "";
+    let compromissos = [];
+
+    function renderMsg(text, sender) {
+      const div = document.createElement("div");
+      div.className = "msg " + sender;
+      div.textContent = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function parseDate(text) {
+      const regex = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/;
+      const match = text.match(regex);
+      if (!match) return null;
+      const d = parseInt(match[1]);
+      const m = parseInt(match[2]) - 1;
+      const y = match[3] ? parseInt(match[3]) : new Date().getFullYear();
+      return new Date(y, m, d);
+    }
+
+    async function salvarCompromisso(texto) {
+      const data = parseDate(texto);
+      if (!data) {
+        renderMsg("❌ Não entendi a data. Use formato DD/MM.", "bot");
+        return;
+      }
+      const dataStr = data.toISOString().split('T')[0];
+      const novoRef = push(ref(db, `usuarios/${usuario}/compromissos`));
+      await set(novoRef, { texto, data: dataStr });
+      renderMsg("✅ Salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
+    }
+
+    sendBtn.onclick = async () => {
+      const text = inputText.value.trim();
+      if (!text) return;
+      renderMsg(text, "user");
+      await salvarCompromisso(text);
+      inputText.value = "";
+    };
+
+    inputText.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendBtn.click();
+    });
+
+    window.onload = () => {
+      usuario = prompt("Digite seu nome de usuário (ex: vini, caca):") || "anonimo";
+      renderMsg("👋 Olá, " + usuario + "! Sua agenda está pronta.", "bot");
+    };
   </script>
 </body>
 </html>
