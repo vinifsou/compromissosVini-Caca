@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Agenda Vini & Cacá</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     html, body {
       margin: 0;
       padding: 0;
@@ -20,7 +23,7 @@
     .iphone {
       width: 100%;
       max-width: 390px;
-      height: 100vh;
+      height: 100%;
       max-height: 844px;
       border: 16px solid #333;
       border-radius: 50px;
@@ -28,7 +31,7 @@
       background: #ece5dd;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      overflow: auto;
     }
     .header {
       background: #075e54;
@@ -153,9 +156,14 @@
         return;
       }
       const dataStr = data.toISOString().split('T')[0];
-      const novoRef = push(ref(db, `usuarios/${usuario}/compromissos`));
-      await set(novoRef, { texto, data: dataStr });
-      renderMsg("✅ Salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
+      try {
+        const novoRef = push(ref(db, `usuarios/${usuario}/compromissos`));
+        await set(novoRef, { texto, data: dataStr });
+        renderMsg("✅ Salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
+      } catch (e) {
+        renderMsg("⚠️ Erro ao salvar: " + e.message, "bot");
+        console.error("Erro Firebase:", e);
+      }
     }
 
     async function listarCompromissosFds() {
@@ -185,9 +193,10 @@
 
     async function processarTexto(texto) {
       if (/listar/i.test(texto)) {
-        await listarCompromissos();
+        await listarCompromissosFds();
       } else if (/excluir todos/i.test(texto)) {
-        await excluirTodosCompromissos();
+        await remove(ref(db, `usuarios/${usuario}/compromissos`));
+        renderMsg("🗑️ Todos os compromissos foram excluídos.", "bot");
       } else if (isFdsPergunta(texto)) {
         await listarCompromissosFds();
       } else {
