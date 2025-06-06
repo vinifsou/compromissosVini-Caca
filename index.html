@@ -173,14 +173,17 @@
         }
         const dados = Object.values(snap.val());
         const agora = new Date();
-        const proxSabado = new Date(agora);
-        proxSabado.setDate(agora.getDate() + ((6 - agora.getDay() + 7) % 7));
-        const proxDomingo = new Date(proxSabado);
-        proxDomingo.setDate(proxSabado.getDate() + 1);
+
+        const diaSemana = agora.getDay();
+        const sabado = new Date(agora);
+        sabado.setDate(agora.getDate() + (6 - diaSemana >= 0 ? 6 - diaSemana : 6));
+
+        const domingo = new Date(sabado);
+        domingo.setDate(sabado.getDate() + 1);
 
         const lista = dados.filter(c => {
           const d = new Date(c.data);
-          return d >= proxSabado && d <= proxDomingo;
+          return d >= sabado && d <= domingo;
         }).map(c => `📌 ${c.texto} - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
 
         if (lista.length === 0) {
