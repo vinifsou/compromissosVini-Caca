@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Agenda de Fim de Semana</title>
+  <title>Agenda Inteligente FDS</title>
   <style>
     body {
       font-family: sans-serif;
@@ -77,28 +77,60 @@
       chat.scrollTop = chat.scrollHeight;
     }
 
+    function parseDateFromText(text) {
+      const dateRegex = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/;
+      const match = text.match(dateRegex);
+      if (match) {
+        const [_, d, m, y] = match;
+        const year = y || new Date().getFullYear();
+        return new Date(`${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+      }
+      if (/sábado|sabado/i.test(text)) {
+        return getNextWeekdayDate(6);
+      }
+      if (/domingo/i.test(text)) {
+        return getNextWeekdayDate(0);
+      }
+      return null;
+    }
+
+    function getNextWeekdayDate(weekday, fromDate = new Date()) {
+      const date = new Date(fromDate);
+      const diff = (weekday + 7 - date.getDay()) % 7;
+      date.setDate(date.getDate() + diff);
+      return date;
+    }
+
     function salvarCompromisso(texto) {
-      compromissos.push({ texto, data: new Date().toISOString() });
+      const data = parseDateFromText(texto);
+      compromissos.push({ texto, data: data ? data.toISOString().split('T')[0] : null });
       localStorage.setItem("compromissos_fds", JSON.stringify(compromissos));
     }
 
-    function compromissosFds() {
-      const diasFds = ["sábado", "sabado", "domingo"];
-      return compromissos.filter(c => {
-        const txt = c.texto.toLowerCase();
-        return diasFds.some(d => txt.includes(d));
-      });
+    function buscarCompromissosPorDataBaseada(text) {
+      let baseDate = null;
+      if (/este f.?im de semana/i.test(text)) {
+        baseDate = new Date();
+      } else if (/fim de semana do dia (\d{1,2})\/(\d{1,2})/i.test(text)) {
+        const match = text.match(/(\d{1,2})\/(\d{1,2})/);
+        baseDate = new Date(`${new Date().getFullYear()}-${match[2]}-${match[1]}`);
+      }
+      if (!baseDate) return [];
+      const sab = getNextWeekdayDate(6, baseDate).toISOString().split('T')[0];
+      const dom = getNextWeekdayDate(0, new Date(sab)).toISOString().split('T')[0];
+      return compromissos.filter(c => c.data === sab || c.data === dom);
     }
 
     function handleInput(text) {
       renderMsg(text, "user");
-      if (text.toLowerCase().includes("o que tenho") && text.toLowerCase().includes("fim de semana")) {
-        const lista = compromissosFds();
+      const lower = text.toLowerCase();
+      if (lower.includes("tenho") && lower.includes("fim de semana")) {
+        const lista = buscarCompromissosPorDataBaseada(text);
         if (lista.length === 0) {
-          renderMsg("Nenhum compromisso registrado para o fim de semana.", "bot");
+          renderMsg("Nenhum compromisso registrado para o período consultado.", "bot");
         } else {
           const resposta = lista.map((c, i) => `(${i + 1}) ${c.texto}`).join("\n");
-          renderMsg("Seus compromissos do fim de semana:\n" + resposta, "bot");
+          renderMsg("Seus compromissos:\n" + resposta, "bot");
         }
       } else {
         salvarCompromisso(text);
@@ -120,3 +152,4 @@
   </script>
 </body>
 </html>
+
