@@ -163,10 +163,10 @@
         renderMsg("📭 Nenhum compromisso encontrado.", "bot");
         return;
       }
-      const dados = Object.values(snap.val());
+      const dados = Object.entries(snap.val());
       const hoje = new Date();
 
-      const diaSemana = hoje.getDay(); // 0 = domingo, 6 = sábado
+      const diaSemana = hoje.getDay();
       const sexta = new Date(hoje);
       sexta.setDate(hoje.getDate() + ((5 - diaSemana + 7) % 7));
       sexta.setHours(0, 0, 0, 0);
@@ -175,11 +175,14 @@
       domingo.setDate(sexta.getDate() + 2);
       domingo.setHours(23, 59, 59, 999);
 
-      const lista = dados.filter(c => {
-        const d = new Date(c.data);
-        d.setHours(0, 0, 0, 0);
-        return d >= sexta && d <= domingo;
-      }).map(c => `📌 ${c.texto} (${c.autor || "desconhecido"}) - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
+      const lista = dados
+        .map(([id, c]) => {
+          const d = new Date(c.data);
+          d.setHours(0, 0, 0, 0);
+          return { id, ...c, dataObj: d };
+        })
+        .filter(c => c.dataObj >= sexta && c.dataObj <= domingo)
+        .map((c, i) => `${i + 1} - ${c.texto} (${c.autor || "desconhecido"})`);
 
       if (lista.length === 0) {
         renderMsg("📭 Nenhum compromisso para este fim de semana.", "bot");
