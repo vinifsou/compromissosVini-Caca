@@ -118,7 +118,6 @@
     const chat = document.getElementById("chat");
     const inputText = document.getElementById("inputText");
     const sendBtn = document.getElementById("sendBtn");
-    let usuario = "";
 
     function renderMsg(text, sender) {
       const div = document.createElement("div");
@@ -129,18 +128,16 @@
     }
 
     function parseDate(text) {
-      const regex = /(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/g;
-      let match;
-      while ((match = regex.exec(text)) !== null) {
-        const d = parseInt(match[1]);
-        const m = parseInt(match[2]) - 1;
-        const y = match[3] ? parseInt(match[3]) : new Date().getFullYear();
-        const date = new Date(y, m, d);
-        if (date && date.getDate() === d && date.getMonth() === m) {
-          return date;
-        }
-      }
-      return null;
+      const regex = /(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/;
+      const match = regex.exec(text);
+      if (!match) return null;
+
+      const d = parseInt(match[1], 10);
+      const m = parseInt(match[2], 10) - 1;
+      const y = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+
+      const date = new Date(y, m, d);
+      return (date.getDate() === d && date.getMonth() === m) ? date : null;
     }
 
     function isFdsPergunta(texto) {
@@ -155,7 +152,7 @@
       }
       const dataStr = data.toISOString().split('T')[0];
       try {
-        const novoRef = push(ref(db, `usuarios/${usuario}/compromissos`));
+        const novoRef = push(ref(db, `compromissos`));
         await set(novoRef, { texto, data: dataStr });
         renderMsg("✅ Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
       } catch (e) {
@@ -166,7 +163,7 @@
 
     async function listarCompromissosFds() {
       try {
-        const snap = await get(ref(db, `usuarios/${usuario}/compromissos`));
+        const snap = await get(ref(db, `compromissos`));
         if (!snap.exists()) {
           renderMsg("📭 Nenhum compromisso encontrado.", "bot");
           return;
@@ -201,7 +198,7 @@
       if (/listar/i.test(texto)) {
         await listarCompromissosFds();
       } else if (/excluir todos/i.test(texto)) {
-        await remove(ref(db, `usuarios/${usuario}/compromissos`));
+        await remove(ref(db, `compromissos`));
         renderMsg("🗑️ Todos os compromissos foram excluídos.", "bot");
       } else if (isFdsPergunta(texto)) {
         await listarCompromissosFds();
@@ -224,8 +221,7 @@
     });
 
     window.onload = () => {
-      usuario = prompt("Digite seu nome de usuário (ex: vini, caca):") || "anonimo";
-      renderMsg("👋 Olá, " + usuario + "! Sua agenda está pronta.\nDigite algo como: Jantar 07/06, ou 'listar' ou 'o que tenho esse fds?'.", "bot");
+      renderMsg("👋 Olá! Sua agenda está pronta.\nDigite algo como: Jantar 07/06, ou 'listar' ou 'o que tenho esse fds?'.", "bot");
     };
   </script>
 </body>
