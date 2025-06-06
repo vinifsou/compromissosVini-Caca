@@ -58,7 +58,7 @@
 <body>
   <div id="chat"></div>
   <div id="inputArea">
-    <input id="inputText" type="text" placeholder="Digite seu compromisso ou pergunta..." />
+    <input id="inputText" type="text" placeholder="Digite seu compromisso ou comando..." />
     <button id="sendBtn">Enviar</button>
   </div>
 
@@ -104,12 +104,12 @@
     function salvarCompromisso(texto) {
       const data = parseDateFromText(texto);
       if (!data) {
-        renderMsg("Não consegui entender a data. Use o formato DD/MM ou inclua 'sábado' ou 'domingo'.", "bot");
+        renderMsg("❌ Não consegui entender a data. Use o formato DD/MM.", "bot");
         return;
       }
       compromissos.push({ texto, data: data.toISOString().split('T')[0] });
       localStorage.setItem("compromissos_fds", JSON.stringify(compromissos));
-      renderMsg("Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
+      renderMsg("✅ Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
     }
 
     function buscarCompromissosPorDataBaseada(text) {
@@ -135,15 +135,45 @@
       return /^excluir\s*\d+$/i.test(text.trim());
     }
 
+    function isComandoEditar(text) {
+      return /^editar\s*\d+\s*-\s*/i.test(text.trim());
+    }
+
     function executarComandoDeletar(text) {
       const numero = parseInt(text.trim().split(" ")[1]);
       if (!isNaN(numero) && ultimaListaConsultada.length >= numero) {
         const indexOriginal = ultimaListaConsultada[numero - 1].originalIndex;
         const itemRemovido = compromissos.splice(indexOriginal, 1);
         localStorage.setItem("compromissos_fds", JSON.stringify(compromissos));
-        renderMsg(`Compromisso (${numero}) excluído: ${itemRemovido[0].texto}`, "bot");
+        renderMsg(`🗑️ Compromisso (${numero}) excluído: ${itemRemovido[0].texto}`, "bot");
       } else {
-        renderMsg("Número inválido para exclusão.", "bot");
+        renderMsg("❌ Número inválido para exclusão.", "bot");
+      }
+    }
+
+    function executarComandoEditar(text) {
+      const match = text.match(/^editar\s*(\d+)\s*-\s*(.+)$/i);
+      if (!match) {
+        renderMsg("❌ Formato inválido. Use: editar [número] - novo texto", "bot");
+        return;
+      }
+      const numero = parseInt(match[1]);
+      const novoTexto = match[2];
+      if (!isNaN(numero) && ultimaListaConsultada.length >= numero) {
+        const indexOriginal = ultimaListaConsultada[numero - 1].originalIndex;
+        const novaData = parseDateFromText(novoTexto);
+        if (!novaData) {
+          renderMsg("❌ A nova mensagem precisa conter uma data válida (DD/MM).", "bot");
+          return;
+        }
+        compromissos[indexOriginal] = {
+          texto: novoTexto,
+          data: novaData.toISOString().split('T')[0]
+        };
+        localStorage.setItem("compromissos_fds", JSON.stringify(compromissos));
+        renderMsg(`✏️ Compromisso (${numero}) atualizado para: ${novoTexto}`, "bot");
+      } else {
+        renderMsg("❌ Número inválido para edição.", "bot");
       }
     }
 
@@ -153,7 +183,10 @@
         executarComandoDeletar(text);
         return;
       }
-
+      if (isComandoEditar(text)) {
+        executarComandoEditar(text);
+        return;
+      }
       if (isPergunta(text)) {
         const lista = buscarCompromissosPorDataBaseada(text);
         ultimaListaConsultada = lista;
@@ -161,7 +194,7 @@
           renderMsg("Nenhum compromisso registrado para o período consultado.", "bot");
         } else {
           const resposta = lista.map((c, i) => `(${i + 1}) ${c.texto}`).join("\n");
-          renderMsg("Seus compromissos:\n" + resposta + "\nPara excluir, digite: excluir [número]", "bot");
+          renderMsg("📅 Seus compromissos:\n" + resposta + "\nPara excluir, digite: excluir [número]\nPara editar, digite: editar [número] - novo texto com data", "bot");
         }
       } else {
         salvarCompromisso(text);
@@ -182,3 +215,4 @@
   </script>
 </body>
 </html>
+
