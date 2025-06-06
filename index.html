@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agenda de Fim de Semana</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f2f2f2;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    #chat {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .msg {
+      background: #e0e0e0;
+      padding: 8px 12px;
+      border-radius: 15px;
+      margin: 5px 0;
+      max-width: 80%;
+    }
+    .user {
+      align-self: flex-end;
+      background: #cef;
+    }
+    .bot {
+      align-self: flex-start;
+      background: #fff;
+    }
+    #inputArea {
+      display: flex;
+      border-top: 1px solid #ccc;
+    }
+    #inputText {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+    }
+    #sendBtn {
+      padding: 10px;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="chat"></div>
+  <div id="inputArea">
+    <input id="inputText" type="text" placeholder="Digite seu compromisso..." />
+    <button id="sendBtn">Enviar</button>
+  </div>
+
+  <script>
+    const chat = document.getElementById("chat");
+    const inputText = document.getElementById("inputText");
+    const sendBtn = document.getElementById("sendBtn");
+
+    let compromissos = JSON.parse(localStorage.getItem("compromissos_fds")) || [];
+
+    function renderMsg(text, sender) {
+      const div = document.createElement("div");
+      div.className = "msg " + sender;
+      div.textContent = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function salvarCompromisso(texto) {
+      compromissos.push({ texto, data: new Date().toISOString() });
+      localStorage.setItem("compromissos_fds", JSON.stringify(compromissos));
+    }
+
+    function compromissosFds() {
+      const diasFds = ["sábado", "sabado", "domingo"];
+      return compromissos.filter(c => {
+        const txt = c.texto.toLowerCase();
+        return diasFds.some(d => txt.includes(d));
+      });
+    }
+
+    function handleInput(text) {
+      renderMsg(text, "user");
+      if (text.toLowerCase().includes("o que tenho") && text.toLowerCase().includes("fim de semana")) {
+        const lista = compromissosFds();
+        if (lista.length === 0) {
+          renderMsg("Nenhum compromisso registrado para o fim de semana.", "bot");
+        } else {
+          const resposta = lista.map((c, i) => `(${i + 1}) ${c.texto}`).join("\n");
+          renderMsg("Seus compromissos do fim de semana:\n" + resposta, "bot");
+        }
+      } else {
+        salvarCompromisso(text);
+        renderMsg("Compromisso salvo!", "bot");
+      }
+    }
+
+    sendBtn.onclick = () => {
+      const text = inputText.value.trim();
+      if (text) {
+        handleInput(text);
+        inputText.value = "";
+      }
+    };
+
+    inputText.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendBtn.click();
+    });
+  </script>
+</body>
+</html>
