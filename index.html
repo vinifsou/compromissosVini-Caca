@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Agenda Vini & Cacá</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
@@ -159,7 +157,7 @@
       try {
         const novoRef = push(ref(db, `usuarios/${usuario}/compromissos`));
         await set(novoRef, { texto, data: dataStr });
-        renderMsg("✅ Salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
+        renderMsg("✅ Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
       } catch (e) {
         renderMsg("⚠️ Erro ao salvar: " + e.message, "bot");
         console.error("Erro Firebase:", e);
@@ -167,27 +165,32 @@
     }
 
     async function listarCompromissosFds() {
-      const snap = await get(ref(db, `usuarios/${usuario}/compromissos`));
-      if (!snap.exists()) {
-        renderMsg("📭 Nenhum compromisso encontrado.", "bot");
-        return;
-      }
-      const dados = Object.values(snap.val());
-      const agora = new Date();
-      const proxSabado = new Date(agora);
-      proxSabado.setDate(agora.getDate() + ((6 - agora.getDay() + 7) % 7));
-      const proxDomingo = new Date(proxSabado);
-      proxDomingo.setDate(proxSabado.getDate() + 1);
+      try {
+        const snap = await get(ref(db, `usuarios/${usuario}/compromissos`));
+        if (!snap.exists()) {
+          renderMsg("📭 Nenhum compromisso encontrado.", "bot");
+          return;
+        }
+        const dados = Object.values(snap.val());
+        const agora = new Date();
+        const proxSabado = new Date(agora);
+        proxSabado.setDate(agora.getDate() + ((6 - agora.getDay() + 7) % 7));
+        const proxDomingo = new Date(proxSabado);
+        proxDomingo.setDate(proxSabado.getDate() + 1);
 
-      const lista = dados.filter(c => {
-        const d = new Date(c.data);
-        return d >= proxSabado && d <= proxDomingo;
-      }).map(c => `📌 ${c.texto} - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
+        const lista = dados.filter(c => {
+          const d = new Date(c.data);
+          return d >= proxSabado && d <= proxDomingo;
+        }).map(c => `📌 ${c.texto} - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
 
-      if (lista.length === 0) {
-        renderMsg("📭 Nenhum compromisso para este fim de semana.", "bot");
-      } else {
-        renderMsg("📅 Fim de semana:\n" + lista.join("\n"), "bot");
+        if (lista.length === 0) {
+          renderMsg("📭 Nenhum compromisso para este fim de semana.", "bot");
+        } else {
+          renderMsg("📅 Compromissos deste fim de semana:\n" + lista.join("\n"), "bot");
+        }
+      } catch (e) {
+        renderMsg("❌ Erro ao buscar compromissos.", "bot");
+        console.error(e);
       }
     }
 
