@@ -99,143 +99,142 @@
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getDatabase, ref, push, set, get, update, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+    document.addEventListener("DOMContentLoaded", async () => {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js");
+      const { getDatabase, ref, push, set, get, remove } = await import("https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js");
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCyMDWt_iKPvEyVua88VJyCv1za4fp1Ric",
-      authDomain: "agenda-vini-e-caca.firebaseapp.com",
-      projectId: "agenda-vini-e-caca",
-      storageBucket: "agenda-vini-e-caca.appspot.com",
-      messagingSenderId: "472483277224",
-      appId: "1:472483277224:web:11020f020aa3e2da07d59d",
-      measurementId: "G-6E4WLR75CM",
-      databaseURL: "https://agenda-vini-e-caca-default-rtdb.firebaseio.com"
-    };
+      const firebaseConfig = {
+        apiKey: "AIzaSyCyMDWt_iKPvEyVua88VJyCv1za4fp1Ric",
+        authDomain: "agenda-vini-e-caca.firebaseapp.com",
+        projectId: "agenda-vini-e-caca",
+        storageBucket: "agenda-vini-e-caca.appspot.com",
+        messagingSenderId: "472483277224",
+        appId: "1:472483277224:web:11020f020aa3e2da07d59d",
+        measurementId: "G-6E4WLR75CM",
+        databaseURL: "https://agenda-vini-e-caca-default-rtdb.firebaseio.com"
+      };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
 
-    const chat = document.getElementById("chat");
-    const inputText = document.getElementById("inputText");
-    const sendBtn = document.getElementById("sendBtn");
+      const chat = document.getElementById("chat");
+      const inputText = document.getElementById("inputText");
+      const sendBtn = document.getElementById("sendBtn");
 
-    let nomeUsuario = "";
-    let compromissosCache = [];
+      let nomeUsuario = prompt("Digite seu nome (ex: Vini, Cacá):")?.trim() || "anonimo";
+      let compromissosCache = [];
 
-    function renderMsg(text, sender) {
-      const div = document.createElement("div");
-      div.className = "msg " + sender;
-      div.textContent = text;
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    function parseDate(text) {
-      const regex = /(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/;
-      const match = regex.exec(text);
-      if (!match) return null;
-      const d = parseInt(match[1], 10);
-      const m = parseInt(match[2], 10) - 1;
-      const y = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
-      const date = new Date(y, m, d);
-      return (date.getDate() === d && date.getMonth() === m) ? date : null;
-    }
-
-    function isFdsPergunta(texto) {
-      return /fim de semana|fds|final de semana/i.test(texto);
-    }
-
-    async function salvarCompromisso(texto) {
-      const data = parseDate(texto);
-      if (!data) {
-        renderMsg("❌ Não entendi a data. Use formato DD/MM.", "bot");
-        return;
+      function renderMsg(text, sender) {
+        const div = document.createElement("div");
+        div.className = "msg " + sender;
+        div.textContent = text;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
       }
-      const dataStr = data.toISOString().split('T')[0];
-      const novoRef = push(ref(db, `compromissos`));
-      await set(novoRef, { texto, data: dataStr, autor: nomeUsuario });
-      renderMsg("✅ Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
-    }
 
-    async function listarCompromissosFds() {
-      const snap = await get(ref(db, `compromissos`));
-      if (!snap.exists()) {
-        renderMsg("📭 Nenhum compromisso encontrado.", "bot");
-        return;
+      function parseDate(text) {
+        const regex = /(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/;
+        const match = regex.exec(text);
+        if (!match) return null;
+        const d = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10) - 1;
+        const y = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+        const date = new Date(y, m, d);
+        return (date.getDate() === d && date.getMonth() === m) ? date : null;
       }
-      const dados = Object.entries(snap.val());
-      const hoje = new Date();
 
-      const diaSemana = hoje.getDay();
-      const sexta = new Date(hoje);
-      sexta.setDate(hoje.getDate() + ((5 - diaSemana + 7) % 7));
-      sexta.setHours(0, 0, 0, 0);
-
-      const domingo = new Date(sexta);
-      domingo.setDate(sexta.getDate() + 2);
-      domingo.setHours(23, 59, 59, 999);
-
-      compromissosCache = dados
-        .map(([id, c]) => {
-          const d = new Date(c.data);
-          d.setHours(0, 0, 0, 0);
-          return { id, ...c, dataObj: d };
-        })
-        .filter(c => c.dataObj >= sexta && c.dataObj <= domingo);
-
-      if (compromissosCache.length === 0) {
-        renderMsg("📭 Nenhum compromisso para este fim de semana.", "bot");
-      } else {
-        const lista = compromissosCache.map((c, i) => `${i + 1} - ${c.texto} (${c.autor || "desconhecido"})`);
-        renderMsg("📅 Compromissos deste fim de semana:\n" + lista.join("\n"), "bot");
+      function isFdsPergunta(texto) {
+        return /fim de semana|fds|final de semana/i.test(texto);
       }
-    }
 
-    async function excluirPorNumero(num) {
-      const idx = parseInt(num) - 1;
-      if (isNaN(idx) || idx < 0 || idx >= compromissosCache.length) {
-        renderMsg("❌ Número inválido.", "bot");
-        return;
+      async function salvarCompromisso(texto) {
+        const data = parseDate(texto);
+        if (!data) {
+          renderMsg("❌ Não entendi a data. Use formato DD/MM.", "bot");
+          return;
+        }
+        const dataStr = data.toISOString().split('T')[0];
+        const novoRef = push(ref(db, `compromissos`));
+        await set(novoRef, { texto, data: dataStr, autor: nomeUsuario });
+        renderMsg("✅ Compromisso salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
       }
-      const id = compromissosCache[idx].id;
-      await remove(ref(db, `compromissos/${id}`));
-      renderMsg("🗑️ Compromisso excluído com sucesso.", "bot");
-    }
 
-    async function processarTexto(texto) {
-      if (/listar/i.test(texto)) {
-        await listarCompromissosFds();
-      } else if (/excluir todos/i.test(texto)) {
-        await remove(ref(db, `compromissos`));
-        renderMsg("🗑️ Todos os compromissos foram excluídos.", "bot");
-      } else if (/excluir (\d+)/i.test(texto)) {
-        const num = texto.match(/excluir (\d+)/i)[1];
-        await excluirPorNumero(num);
-      } else if (isFdsPergunta(texto)) {
-        await listarCompromissosFds();
-      } else {
-        await salvarCompromisso(texto);
+      async function listarCompromissosFds() {
+        const snap = await get(ref(db, `compromissos`));
+        if (!snap.exists()) {
+          renderMsg("📭 Nenhum compromisso encontrado.", "bot");
+          return;
+        }
+        const dados = Object.entries(snap.val());
+        const hoje = new Date();
+
+        const diaSemana = hoje.getDay();
+        const sexta = new Date(hoje);
+        sexta.setDate(hoje.getDate() + ((5 - diaSemana + 7) % 7));
+        sexta.setHours(0, 0, 0, 0);
+
+        const domingo = new Date(sexta);
+        domingo.setDate(sexta.getDate() + 2);
+        domingo.setHours(23, 59, 59, 999);
+
+        compromissosCache = dados
+          .map(([id, c]) => {
+            const d = new Date(c.data);
+            d.setHours(0, 0, 0, 0);
+            return { id, ...c, dataObj: d };
+          })
+          .filter(c => c.dataObj >= sexta && c.dataObj <= domingo);
+
+        if (compromissosCache.length === 0) {
+          renderMsg("📭 Nenhum compromisso para este fim de semana.", "bot");
+        } else {
+          const lista = compromissosCache.map((c, i) => `${i + 1} - ${c.texto} (${c.autor || "desconhecido"})`);
+          renderMsg("📅 Compromissos deste fim de semana:\n" + lista.join("\n"), "bot");
+        }
       }
-    }
 
-    sendBtn.onclick = async () => {
-      const text = inputText.value.trim();
-      if (!text) return;
-      renderMsg(text, "user");
-      await processarTexto(text);
-      inputText.value = "";
-      inputText.focus();
-    };
+      async function excluirPorNumero(num) {
+        const idx = parseInt(num) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= compromissosCache.length) {
+          renderMsg("❌ Número inválido.", "bot");
+          return;
+        }
+        const id = compromissosCache[idx].id;
+        await remove(ref(db, `compromissos/${id}`));
+        renderMsg("🗑️ Compromisso excluído com sucesso.", "bot");
+      }
 
-    inputText.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") sendBtn.click();
-    });
+      async function processarTexto(texto) {
+        if (/listar/i.test(texto)) {
+          await listarCompromissosFds();
+        } else if (/excluir todos/i.test(texto)) {
+          await remove(ref(db, `compromissos`));
+          renderMsg("🗑️ Todos os compromissos foram excluídos.", "bot");
+        } else if (/excluir (\d+)/i.test(texto)) {
+          const num = texto.match(/excluir (\d+)/i)[1];
+          await excluirPorNumero(num);
+        } else if (isFdsPergunta(texto)) {
+          await listarCompromissosFds();
+        } else {
+          await salvarCompromisso(texto);
+        }
+      }
 
-    window.onload = () => {
-      nomeUsuario = prompt("Digite seu nome (ex: Vini, Cacá):")?.trim() || "anonimo";
+      sendBtn.onclick = async () => {
+        const text = inputText.value.trim();
+        if (!text) return;
+        renderMsg(text, "user");
+        await processarTexto(text);
+        inputText.value = "";
+        inputText.focus();
+      };
+
+      inputText.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendBtn.click();
+      });
+
       renderMsg("👋 Olá " + nomeUsuario + "!\nDigite algo como: Jantar 07/06, ou 'listar', ou 'o que tenho esse fds?'.", "bot");
-    };
+    });
   </script>
 </body>
 </html>
