@@ -2,21 +2,26 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Agenda Vini & Cacá</title>
   <style>
-    body {
-      background: #d2dbdc;
+    html, body {
       margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #d2dbdc;
       font-family: 'Segoe UI', sans-serif;
+    }
+    body {
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
     }
     .iphone {
-      width: 390px;
-      height: 844px;
+      width: 100%;
+      max-width: 390px;
+      height: 100vh;
+      max-height: 844px;
       border: 16px solid #333;
       border-radius: 50px;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
@@ -24,7 +29,6 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      position: relative;
     }
     .header {
       background: #075e54;
@@ -138,6 +142,10 @@
       return null;
     }
 
+    function isFdsPergunta(texto) {
+      return /fim de semana|fds|final de semana/i.test(texto);
+    }
+
     async function salvarCompromisso(texto) {
       const data = parseDate(texto);
       if (!data) {
@@ -150,20 +158,29 @@
       renderMsg("✅ Salvo para " + data.toLocaleDateString("pt-BR") + ".", "bot");
     }
 
-    async function listarCompromissos() {
+    async function listarCompromissosFds() {
       const snap = await get(ref(db, `usuarios/${usuario}/compromissos`));
       if (!snap.exists()) {
         renderMsg("📭 Nenhum compromisso encontrado.", "bot");
         return;
       }
-      const dados = snap.val();
-      const lista = Object.values(dados).map(c => `📌 ${c.texto} - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
-      renderMsg("📅 Compromissos:\n" + lista.join("\n"), "bot");
-    }
+      const dados = Object.values(snap.val());
+      const agora = new Date();
+      const proxSabado = new Date(agora);
+      proxSabado.setDate(agora.getDate() + ((6 - agora.getDay() + 7) % 7));
+      const proxDomingo = new Date(proxSabado);
+      proxDomingo.setDate(proxSabado.getDate() + 1);
 
-    async function excluirTodosCompromissos() {
-      await remove(ref(db, `usuarios/${usuario}/compromissos`));
-      renderMsg("🗑️ Todos os compromissos foram excluídos.", "bot");
+      const lista = dados.filter(c => {
+        const d = new Date(c.data);
+        return d >= proxSabado && d <= proxDomingo;
+      }).map(c => `📌 ${c.texto} - ${new Date(c.data).toLocaleDateString("pt-BR")}`);
+
+      if (lista.length === 0) {
+        renderMsg("📭 Nenhum compromisso para este fim de semana.", "bot");
+      } else {
+        renderMsg("📅 Fim de semana:\n" + lista.join("\n"), "bot");
+      }
     }
 
     async function processarTexto(texto) {
@@ -171,6 +188,8 @@
         await listarCompromissos();
       } else if (/excluir todos/i.test(texto)) {
         await excluirTodosCompromissos();
+      } else if (isFdsPergunta(texto)) {
+        await listarCompromissosFds();
       } else {
         await salvarCompromisso(texto);
       }
@@ -191,7 +210,7 @@
 
     window.onload = () => {
       usuario = prompt("Digite seu nome de usuário (ex: vini, caca):") || "anonimo";
-      renderMsg("👋 Olá, " + usuario + "! Sua agenda está pronta.\nDigite algo como: Jantar 07/06, ou 'listar' para ver os compromissos.", "bot");
+      renderMsg("👋 Olá, " + usuario + "! Sua agenda está pronta.\nDigite algo como: Jantar 07/06, ou 'listar' ou 'o que tenho esse fds?'.", "bot");
     };
   </script>
 </body>
