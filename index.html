@@ -100,7 +100,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getDatabase, ref, push, set, get, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+    import { getDatabase, ref, push, set, get, update, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCyMDWt_iKPvEyVua88VJyCv1za4fp1Ric",
@@ -121,6 +121,7 @@
     const sendBtn = document.getElementById("sendBtn");
 
     let nomeUsuario = "";
+    let compromissosCache = [];
 
     function renderMsg(text, sender) {
       const div = document.createElement("div");
@@ -131,7 +132,7 @@
     }
 
     function parseDate(text) {
-      const regex = /(\\d{1,2})\\/(\\d{1,2})(?:\\/(\\d{2,4}))?/;
+      const regex = /(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/;
       const match = regex.exec(text);
       if (!match) return null;
       const d = parseInt(match[1], 10);
@@ -175,20 +176,31 @@
       domingo.setDate(sexta.getDate() + 2);
       domingo.setHours(23, 59, 59, 999);
 
-      const lista = dados
+      compromissosCache = dados
         .map(([id, c]) => {
           const d = new Date(c.data);
           d.setHours(0, 0, 0, 0);
           return { id, ...c, dataObj: d };
         })
-        .filter(c => c.dataObj >= sexta && c.dataObj <= domingo)
-        .map((c, i) => `${i + 1} - ${c.texto} (${c.autor || "desconhecido"})`);
+        .filter(c => c.dataObj >= sexta && c.dataObj <= domingo);
 
-      if (lista.length === 0) {
+      if (compromissosCache.length === 0) {
         renderMsg("📭 Nenhum compromisso para este fim de semana.", "bot");
       } else {
+        const lista = compromissosCache.map((c, i) => `${i + 1} - ${c.texto} (${c.autor || "desconhecido"})`);
         renderMsg("📅 Compromissos deste fim de semana:\n" + lista.join("\n"), "bot");
       }
+    }
+
+    async function excluirPorNumero(num) {
+      const idx = parseInt(num) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= compromissosCache.length) {
+        renderMsg("❌ Número inválido.", "bot");
+        return;
+      }
+      const id = compromissosCache[idx].id;
+      await remove(ref(db, `compromissos/${id}`));
+      renderMsg("🗑️ Compromisso excluído com sucesso.", "bot");
     }
 
     async function processarTexto(texto) {
@@ -197,6 +209,9 @@
       } else if (/excluir todos/i.test(texto)) {
         await remove(ref(db, `compromissos`));
         renderMsg("🗑️ Todos os compromissos foram excluídos.", "bot");
+      } else if (/excluir (\d+)/i.test(texto)) {
+        const num = texto.match(/excluir (\d+)/i)[1];
+        await excluirPorNumero(num);
       } else if (isFdsPergunta(texto)) {
         await listarCompromissosFds();
       } else {
